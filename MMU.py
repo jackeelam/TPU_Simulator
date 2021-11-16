@@ -49,7 +49,8 @@ class MAC:
 
 
 class MMU:
-    def __init__(self, rows, cols, mmu_inputs, weights):
+    def __init__(self, rows, cols, mmu_inputs, weights, accumulator):
+        self.accumulator = accumulator
         self.array = np.ndarray((rows, cols), dtype=MAC)
         for i in range(rows):
             for j in range(cols):
@@ -69,3 +70,5 @@ class MMU:
         for row in self.array:
             for mac in row:
                 mac.compute()
+
+        self.accumulator.add_partial_sum(self.array[-1])

@@ -7,7 +7,7 @@ from queue import Queue
 class UnifiedBuffer:
     def __init__(self, input):
         self.input_rows = len(input)
-        self.input_buffer = self.systolic_array_setup(input, self.input_rows)
+        self.input_buffer = self.systolic_array_setup(input.T, self.input_rows)
 
     # Given 2D input, reformat so that it is triangle padded with zeros
     def systolic_array_setup(self, input, input_rows):
