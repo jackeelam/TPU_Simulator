@@ -24,7 +24,7 @@ class FIFOWeightBuffer:
         for row in range(self.weight_rows):
 
             # insert input
-            for element in additional_input[row]:
+            for element in additional_weights[row]:
                 self.weight_buffer[row].put(element)
 
     # Remove weights from weight buffer given dimensions
