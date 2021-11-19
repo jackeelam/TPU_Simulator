@@ -27,5 +27,5 @@ acc.display()
 
 ground_truth = np.matmul(inputMatrix, weights)
 print()
-print("Ground truth: ")
+print("MATRIX MULTIPLICATION: ")
 print(ground_truth)
