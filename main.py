@@ -14,8 +14,8 @@ weights = np.array([[10, 20, 30], [40, 50, 60], [70, 80, 90]])
 ub = UnifiedBuffer(inputMatrix)
 wf = WeightFIFO(weights)
 
-acc = Accumulator(256, 256)
-mmu = MMU(3, 3, ub.input_buffer, weights, acc)
+acc = Accumulator(3, 256)
+mmu = MMU(3, 3, ub.systolic_array_buffer, weights, acc)
 
 cycles = 7
 
