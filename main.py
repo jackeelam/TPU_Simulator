@@ -11,18 +11,20 @@ inputMatrix = np.array([[1, 2, 3], [4, 5, 6], [7, 8, 9]])
 
 weights = np.array([[10, 20, 30], [40, 50, 60], [70, 80, 90]])
 
-ub = UnifiedBuffer(inputMatrix)
+ub = UnifiedBuffer()
+ub.store_input(inputMatrix)
 wf = WeightFIFO(weights)
 
 acc = Accumulator(3, 256)
-mmu = MMU(3, 3, ub.systolic_array_buffer, weights, acc)
+mmu = MMU(3, 3, ub.get_systolic_array_buffer(), weights, acc)
 
 cycles = 7
 
 for i in range(cycles):
     mmu.cycle()
-    
+
 acc.display()
+ub.store_acc(acc)
 
 
 ground_truth = np.matmul(inputMatrix, weights)
