@@ -1,5 +1,5 @@
 import numpy as np
-
+from queue import Queue
 
 class MAC:
     def __init__(self, x, y, mac_left, mac_up, input_buffer):
@@ -49,15 +49,21 @@ class MAC:
 
 
 class MMU:
-    def __init__(self, rows, cols, mmu_inputs, weights, accumulator):
+    def __init__(self, rows, cols, unified_buffer, weight_fifo, accumulator):
         self.accumulator = accumulator
         self.array = np.ndarray((rows, cols), dtype=MAC)
+
+        self.unified_buffer = unified_buffer
+        self.weight_fifo = weight_fifo
+
         for i in range(rows):
             for j in range(cols):
                 mac_up = self.array[i - 1, j] if i != 0 else None
                 mac_left = self.array[i, j - 1] if j != 0 else None
-                self.array[i, j] = MAC(j, i, mac_left, mac_up, mmu_inputs)
+                self.array[i, j] = MAC(j, i, mac_left, mac_up, self.unified_buffer.systolic_array_buffer)
 
+    def update_weights(self):
+        weights = self.weight_fifo.get_weights()
         for i in range(len(weights)):
             for j in range(len(weights[0])):
                 self.array[i, j].weight = weights[i, j]
@@ -70,5 +76,5 @@ class MMU:
         for row in self.array:
             for mac in row:
                 mac.compute()
-
-        self.accumulator.add_partial_sum(self.array[-1])
+        
+        self.accumulator.accumulate_partial_sum(self.array[-1])

@@ -3,14 +3,12 @@ from queue import Queue
 
 # Weight FIFO buffer
 class WeightFIFO:
-    def __init__(self, weights):
+    def __init__(self):
         self.weight_buffer = Queue()
-        self.add_weights(weights)
 
     # Add layer weights to weight FIFO buffer
     def add_weights(self, weights):
-        for layer in range(len(weights)):
-            self.weight_buffer.put(layer)
+        self.weight_buffer.put(weights)
 
     # Remove weights from weight buffer given dimensions
     def get_weights(self):
