@@ -11,7 +11,7 @@ class UnifiedBuffer:
 
     def get_systolic_array_buffer(self, sram_index=0):
         input = self.sram.pop(sram_index)
-        return self.systolic_array_setup(input.T)
+        return self.systolic_array_setup(input) 
 
     # Given 2D input, reformat so that it is triangle padded with zeros
     def systolic_array_setup(self, input):
