@@ -142,17 +142,19 @@ def test_large_single_input(mmu_rows=3, mmu_cols=3, input_size=(6,6), largest_bl
     cycles1 = 7
     cycles2 = 3
 
-    # acc.acc_cap = len(A)
+    acc.acc_cap = len(A)
     for i in range(cycles1):
+        wf.cycle()
         mmu.cycle()
-    # ub.store_acc(acc, rows=len(A))
-    acc.display()
     for i in range(cycles2):
+        wf.cycle()
         mmu.cycle()
-    # ub.store_acc(acc, rows=len(B))
-    acc.display()
+    
+    ub.store_acc(acc, rows=len(A))
 
     ground_truth = np.matmul(A, E) + np.matmul(B, G)
+    print("SYSTOLIC ARRAY MULTIPLICATION: ")
+    print(ub.sram_outputs[-1])
     print()
     print("MATRIX MULTIPLICATION: ")
     print(ground_truth)
