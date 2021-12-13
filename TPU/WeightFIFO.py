@@ -14,6 +14,8 @@ class WeightFIFO:
         self.flood_layers = []
         self.flood_indices = []
 
+        self.wait_cycles = 0
+
     def initialize_flood(self):
         weights = self.weight_buffer.get()
         self.flood_layers.append(weights)
@@ -30,8 +32,7 @@ class WeightFIFO:
     def create_flooded_weights(self):
         completed_layer = False
         for weights, idx in zip(self.flood_layers, self.flood_indices):
-            max_dim = max(weights.shape)
-            if idx > max_dim:
+            if idx >= weights.shape[0] + weights.shape[1]:
                 completed_layer = True
             
             for i in range(self.mmu.shape[0]):
@@ -51,10 +52,11 @@ class WeightFIFO:
                 weights = self.weight_buffer.get()
                 self.flood_layers.append(weights)
                 self.flood_indices.append(0)
+
+                print(self.wait_cycles)
             else:
                 self.current_input_size -= 1
 
         self.create_flooded_weights()
         self.mmu.update_weights(self.flood_weights)
         self.flood_indices = [i+1 for i in self.flood_indices]
-        
