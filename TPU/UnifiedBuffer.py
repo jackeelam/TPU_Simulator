@@ -5,13 +5,13 @@ from queue import Queue
 
 
 class UnifiedBuffer:
-    def __init__(self, systolic_array_size):
+    def __init__(self, systolic_array_rows):
         self.sram = []
         self.sram_outputs = []
-        self.systolic_array_size = systolic_array_size
+        self.systolic_array_size = systolic_array_rows
 
         self.systolic_array_buffer = []
-        for i in range(systolic_array_size):
+        for i in range(systolic_array_rows):
             self.systolic_array_buffer.append(Queue())
 
     def update_systolic_array_buffer(self, sram_index=0):
@@ -22,7 +22,10 @@ class UnifiedBuffer:
                 self.systolic_array_buffer[row].put(0)
 
             # insert input
-            for element in input[row]:
+            buffer = np.zeros(input[0].shape[0])
+            if row < len(input):
+                buffer = input[row]
+            for element in buffer:
                 self.systolic_array_buffer[row].put(element)
     
     def store_acc(self, accumulator, rows=None):
@@ -32,4 +35,4 @@ class UnifiedBuffer:
 
     def store_input(self, input):
         self.sram.append(input)
-        # self.update_systolic_array_buffer()
+        self.update_systolic_array_buffer()

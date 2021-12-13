@@ -23,7 +23,7 @@ class Accumulator:
     def reset_acc_cap(self):
         self.acc_cap = len(self.acc)
 
-    def display(self, n=3):
+    def display(self, n=10):
         print('ACCUMULATOR: ')
         for i in range(n):
             print('\t'.join(str(val) for val in self.acc[i, :self.width+1]))
