@@ -8,7 +8,7 @@ def test_single_input(mmu_rows=3, mmu_cols=3):
     inputMatrix = np.array([[1, 2, 3], [4, 5, 6], [7, 8, 9]])
     weights = np.array([[10, 20, 30], [40, 50, 60], [70, 80, 90]])
     input_shapes = [inputMatrix.shape]
-    output_shapes = [[inputMatrix.shape[0], weights.shape[1]]]
+    output_shape = [inputMatrix.shape[0], weights.shape[1]]
 
     ub = UnifiedBuffer(mmu_rows)
     ub.store_input(inputMatrix)
@@ -21,11 +21,11 @@ def test_single_input(mmu_rows=3, mmu_cols=3):
 
     cycles = 7
 
-    ub.allocate_output(output_shapes[0])
+    ub.allocate_output(output_shape)
     for i in range(cycles):
         wf.cycle()
         mmu.cycle()
-    ub.store_acc(acc, output_shapes[0])
+    ub.store_acc(acc, output_shape)
 
     ground_truth = np.matmul(inputMatrix, weights)
     print("SYSTOLIC ARRAY MULTIPLICATION: ")
@@ -233,34 +233,66 @@ def test_large_single_input(mmu_rows=3, mmu_cols=3, input_size=(6,6), largest_bl
     A, B, C, D = tile_matrix(inputMatrix, largest_block_size)
     E, F, G, H = tile_matrix(weights, largest_block_size)
 
-    input_shapes = [A.shape, B.shape]
+    input_shapes = [A.shape, B.shape, C.shape, D.shape, A.shape, B.shape, C.shape, D.shape]
+    output_shape = [inputMatrix.shape[0], weights.shape[1]]
+
+    sub_output_shapes = [
+        [A.shape[0], E.shape[1]],
+        [B.shape[0], G.shape[1]],
+        [A.shape[0], F.shape[1]],
+        [B.shape[0], H.shape[1]],
+        [C.shape[0], E.shape[1]],
+        [D.shape[0], G.shape[1]],
+        [C.shape[0], F.shape[1]],
+        [D.shape[0], H.shape[1]],
+    ]
 
     ub = UnifiedBuffer(mmu_rows)
     ub.store_input(A)
     ub.store_input(B)
+    ub.store_input(A)
+    ub.store_input(B)
+    ub.store_input(C)
+    ub.store_input(D)
+    ub.store_input(C)
+    ub.store_input(D)
 
     acc = Accumulator(mmu_cols, 256)
     mmu = MMU(mmu_rows, mmu_cols, ub, acc)
     wf = WeightFIFO(mmu, input_shapes)
     wf.add_weights(E)
     wf.add_weights(G)
+    wf.add_weights(F)
+    wf.add_weights(H)
+    wf.add_weights(E)
+    wf.add_weights(G)
+    wf.add_weights(F)
+    wf.add_weights(H)
 
-    cycles1 = 7
-    cycles2 = 3
-
-    acc.acc_cap = len(A)
-    for i in range(cycles1):
-        wf.cycle()
-        mmu.cycle()
-    for i in range(cycles2):
+    ub.allocate_output(output_shape)
+    for i in range(mmu_rows - 1 + sub_output_shapes[0][0] - 1):
         wf.cycle()
         mmu.cycle()
     
-    ub.store_acc(acc, rows=len(A))
+    for i in range(4): # tiled into 4 subsections
+        shape = sub_output_shapes[i*2]
+        acc.set_acc_cap(shape[0])
+        for c in range(shape[0]):
+            wf.cycle()
+            mmu.cycle()
+        acc.set_acc_cap(acc.acc_size)
+        for c in range(shape[0]):
+            wf.cycle()
+            mmu.cycle()
+        
+        acc.display()
+        print(i)
+        ub.store_acc(acc, shape=shape, start_row=shape[0]*(i//2), start_col=shape[1]*(i%2))
 
-    ground_truth = np.matmul(A, E) + np.matmul(B, G)
+
+    ground_truth = np.matmul(inputMatrix, weights)
     print("SYSTOLIC ARRAY MULTIPLICATION: ")
-    print(ub.sram_outputs[-1])
+    print(ub.sram_outputs[0])
     print()
     print("MATRIX MULTIPLICATION: ")
     print(ground_truth)
