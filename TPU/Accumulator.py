@@ -46,7 +46,7 @@ class Accumulator:
         """
         self.cap = np.full_like(self.cap, cap)
 
-    def display(self, n=10):
+    def display(self, n=20):
         """
         Test function to print the top n rows of the accumulators
         """

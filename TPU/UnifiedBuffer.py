@@ -59,7 +59,7 @@ class UnifiedBuffer:
         Allocate region of SRAM for the MMU output to be stored. Particularly important when
         the output is tiled and needs to be combined after performing submatrix multiplications
         """
-        self.sram_outputs.append(np.zeros(shape))
+        self.sram_outputs.append(np.zeros(shape, dtype=np.int16))
 
     def store_acc(self, accumulator, shape, index=0, start_row=0, start_col=0):
         """

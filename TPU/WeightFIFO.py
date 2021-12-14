@@ -28,14 +28,6 @@ class WeightFIFO:
         self.flood_layers = []
         self.flood_indices = []
 
-    def initialize_flood(self):
-        """
-        Pop the first layer weight matrix to begin flooding the MMU weights 
-        """
-        weights = self.weight_buffer.get()
-        self.flood_layers.append(weights)
-        self.flood_indices.append(0)
-
     def add_weights(self, weights):
         """
         Add layer weights to the weight FIFO
@@ -69,9 +61,10 @@ class WeightFIFO:
         """
         if len(self.inputs) != 0:
             if self.current_input_size == 0: # start flooding new weights
-                input_shape = self.inputs.pop()
+                input_shape = self.inputs.pop(0)
                 self.current_input_size = input_shape[1] - 1
                 weights = self.weight_buffer.get()
+                # weights = np.pad(weights, [(0, 0), (0, self.mmu.shape[1] - weights.shape[1])], mode='constant')
                 self.flood_layers.append(weights)
                 self.flood_indices.append(0)
             else:
@@ -80,5 +73,4 @@ class WeightFIFO:
         self.create_flooded_weights()
         self.mmu.update_weights(self.flood_weights)
         self.flood_indices = [i+1 for i in self.flood_indices]
-        print(self.flood_weights)
-        print()
+        

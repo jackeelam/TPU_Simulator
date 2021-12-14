@@ -3,57 +3,61 @@ import numpy as np
 from utilities import tile_matrix
 from TPU import *
 
-def test_single_input(mmu_rows=3, mmu_cols=3):
-    # Sample input and weights
-    inputMatrix = np.array([[1, 2, 3], [4, 5, 6], [7, 8, 9]])
-    weights = np.array([[10, 20, 30], [40, 50, 60], [70, 80, 90]])
-    input_shapes = [inputMatrix.shape]
+MMU_ROWS = 6
+MMU_COLS = 6
+
+ACCUMULATOR_SIZE = 256
+
+
+def createTPU(inputs):
+    ub = UnifiedBuffer(MMU_ROWS)
+    acc = Accumulator(MMU_COLS, ACCUMULATOR_SIZE)
+    mmu = MMU(MMU_ROWS, MMU_COLS, ub, acc)
+    input_shapes = [input.shape for input in inputs]
+    wf = WeightFIFO(mmu, input_shapes)
+
+    return ub, acc, mmu, wf
+
+def test_single_input():
+    inputMatrix = np.random.randint(1, 10, (MMU_ROWS, MMU_COLS))
+    weights = np.random.randint(1, 100, (MMU_ROWS, MMU_COLS))
     output_shape = [inputMatrix.shape[0], weights.shape[1]]
 
-    ub = UnifiedBuffer(mmu_rows)
-    ub.store_input(inputMatrix)
-    ub.display_systolic_array_buffer()
+    ub, acc, mmu, wf = createTPU([inputMatrix])
 
-    acc = Accumulator(mmu_cols, 256)
-    mmu = MMU(mmu_rows, mmu_cols, ub, acc)
-    wf = WeightFIFO(mmu, input_shapes)
+    ub.store_input(inputMatrix)
     wf.add_weights(weights)
 
-    cycles = 7
+    cycles = 2*inputMatrix.shape[0] + inputMatrix.shape[1] - 1 # 2*rows + cols - 1
 
     ub.allocate_output(output_shape)
+
     for i in range(cycles):
         wf.cycle()
         mmu.cycle()
     ub.store_acc(acc, output_shape)
 
     ground_truth = np.matmul(inputMatrix, weights)
-    print("SYSTOLIC ARRAY MULTIPLICATION: ")
-    print(ub.sram_outputs[0])
-    print()
-    print("MATRIX MULTIPLICATION: ")
-    print(ground_truth)
+    result = ub.sram_outputs[0]
 
-def test_double_input_same_weights(mmu_rows=3, mmu_cols=3):
-    # Sample input and weights
-    inputMatrix1 = np.array([[1, 2, 3], [4, 5, 6], [7, 8, 9]])
-    inputMatrix2 = np.array([[2, 3, 4], [5, 6, 7], [8, 9, 1]])
-    weights = np.array([[10, 20, 30], [40, 50, 60], [70, 80, 90]])
-    input_shapes = [inputMatrix1.shape, inputMatrix2.shape]
+    assert np.array_equal(result, ground_truth)
+
+def test_double_input_same_weights():
+    inputMatrix1 = np.random.randint(1, 10, (MMU_ROWS, MMU_COLS))
+    inputMatrix2 = np.random.randint(1, 10, (MMU_ROWS, MMU_COLS))
+    weights = np.random.randint(1, 100, (MMU_ROWS, MMU_COLS))
     output_shapes = [[inputMatrix1.shape[0], weights.shape[1]], [inputMatrix2.shape[0], weights.shape[1]]]
 
-    ub = UnifiedBuffer(mmu_rows)
+    ub, acc, mmu, wf = createTPU([inputMatrix1, inputMatrix2])
+
     ub.store_input(inputMatrix1)
     ub.store_input(inputMatrix2)
 
-    acc = Accumulator(mmu_cols, 256)
-    mmu = MMU(mmu_rows, mmu_cols, ub, acc)
-    wf = WeightFIFO(mmu, input_shapes)
     wf.add_weights(weights)
     wf.add_weights(weights)
 
-    cycles1 = 7
-    cycles2 = 3
+    cycles1 = 2*inputMatrix1.shape[0] + inputMatrix1.shape[1] - 1 # 2*rows + cols - 1
+    cycles2 = 2*inputMatrix2.shape[0] - 1
 
     ub.allocate_output(output_shapes[0])
     ub.allocate_output(output_shapes[1])
@@ -67,42 +71,32 @@ def test_double_input_same_weights(mmu_rows=3, mmu_cols=3):
     ub.store_acc(acc, output_shapes[1], index=1)
 
     ground_truth1 = np.matmul(inputMatrix1, weights)
-    print("SYSTOLIC ARRAY MULTIPLICATION 1: ")
-    print(ub.sram_outputs[0])
-    print()
-    print("MATRIX MULTIPLICATION 1: ")
-    print(ground_truth1)
-    print()
+    result1 = ub.sram_outputs[0]
+    assert np.array_equal(ground_truth1, result1)
 
     ground_truth2 = np.matmul(inputMatrix2, weights)
-    print("SYSTOLIC ARRAY MULTIPLICATION 2: ")
-    print(ub.sram_outputs[1])
-    print()
-    print("MATRIX MULTIPLICATION 2: ")
-    print(ground_truth2)
+    result2 = ub.sram_outputs[1]
+    assert np.array_equal(ground_truth2, result2)
 
 
-def test_double_input_different_weights(mmu_rows=3, mmu_cols=3):
-    # Sample input and weights
-    inputMatrix1 = np.array([[1, 2, 3], [4, 5, 6], [7, 8, 9]])
-    inputMatrix2 = np.array([[2, 3, 4], [5, 6, 7], [8, 9, 1]])
-    weights1 = np.array([[1, 2, 3], [4, 5, 6], [7, 8, 9]])
-    weights2 = np.array([[40, 50, 90], [70, 80, 30], [10, 20, 60]])
-    input_shapes = [inputMatrix1.shape, inputMatrix2.shape]
+def test_double_input_different_weights():
+    inputMatrix1 = np.random.randint(1, 10, (MMU_ROWS, MMU_COLS))
+    inputMatrix2 = np.random.randint(1, 10, (MMU_ROWS, MMU_COLS))
+    weights1 = np.random.randint(1, 100, (MMU_ROWS, MMU_COLS))
+    weights2 = np.random.randint(1, 100, (MMU_ROWS, MMU_COLS))
+    
     output_shapes = [[inputMatrix1.shape[0], weights1.shape[1]], [inputMatrix2.shape[0], weights2.shape[1]]]
 
-    ub = UnifiedBuffer(mmu_rows)
+    ub, acc, mmu, wf = createTPU([inputMatrix1, inputMatrix2])
+
     ub.store_input(inputMatrix1)
     ub.store_input(inputMatrix2)
 
-    acc = Accumulator(mmu_cols, 256)
-    mmu = MMU(mmu_rows, mmu_cols, ub, acc)
-    wf = WeightFIFO(mmu, input_shapes)
     wf.add_weights(weights1)
     wf.add_weights(weights2)
 
-    cycles1 = 7
-    cycles2 = 3
+    cycles1 = 2*inputMatrix1.shape[0] + inputMatrix1.shape[1] - 1 # 2*rows + cols - 1
+    cycles2 = 2*inputMatrix2.shape[0] - 1
 
     ub.allocate_output(output_shapes[0])
     ub.allocate_output(output_shapes[1])
@@ -116,45 +110,77 @@ def test_double_input_different_weights(mmu_rows=3, mmu_cols=3):
     ub.store_acc(acc, output_shapes[1], index=1)
 
     ground_truth1 = np.matmul(inputMatrix1, weights1)
-    print("SYSTOLIC ARRAY MULTIPLICATION 1: ")
-    print(ub.sram_outputs[0])
-    print()
-    print("MATRIX MULTIPLICATION 1: ")
-    print(ground_truth1)
-    print()
+    result1 = ub.sram_outputs[0]
+    assert np.array_equal(ground_truth1, result1)
 
     ground_truth2 = np.matmul(inputMatrix2, weights2)
-    print("SYSTOLIC ARRAY MULTIPLICATION 2: ")
-    print(ub.sram_outputs[1])
-    print()
-    print("MATRIX MULTIPLICATION 2: ")
-    print(ground_truth2)
+    result2 = ub.sram_outputs[1]
+    assert np.array_equal(ground_truth2, result2)
 
-def test_double_input_different_weight_different_size_larger(mmu_rows=6, mmu_cols=6):
-    # Sample input and weights
-    inputMatrix1 = np.array([[1, 2, 3], [4, 5, 6], [7, 8, 9]])
-    inputMatrix2 = np.array([[2, 3, 4, 5, 6], [7, 8, 9, 0, 1], [2, 3, 4, 5, 6], [7, 8, 9, 0, 1], [2, 3, 4, 5, 6]])
-    weights1 = np.array([[1, 2, 3], [4, 5, 6], [7, 8, 9]])
-    weights2 = np.array([[40, 50, 90, 45, 55], [70, 80, 30, 75, 85], [10, 20, 60, 15, 25], [30, 40, 70, 35, 45], [60, 70, 20, 65, 75]])
-    input_shapes = [inputMatrix1.shape, inputMatrix2.shape]
+
+def test_double_input_different_weight_different_size_larger():
+    inputMatrix1 = np.random.randint(1, 10, (MMU_ROWS//2, MMU_COLS//2))
+    inputMatrix2 = np.random.randint(1, 10, (MMU_ROWS, MMU_COLS))
+    weights1 = np.random.randint(1, 100, (MMU_ROWS//2, MMU_COLS//2))
+    weights2 = np.random.randint(1, 100, (MMU_ROWS, MMU_COLS))
+    
     output_shapes = [[inputMatrix1.shape[0], weights1.shape[1]], [inputMatrix2.shape[0], weights2.shape[1]]]
 
-    ub = UnifiedBuffer(mmu_rows)
+    ub, acc, mmu, wf = createTPU([inputMatrix1, inputMatrix2])
+
     ub.store_input(inputMatrix1)
     ub.store_input(inputMatrix2)
 
-    acc = Accumulator(mmu_cols, 256)
-    mmu = MMU(mmu_rows, mmu_cols, ub, acc)
-    wf = WeightFIFO(mmu, input_shapes)
     wf.add_weights(weights1)
     wf.add_weights(weights2)
 
-    cycles1 = 10
-    cycles2 = 15
+    mmu_offset = MMU_ROWS - output_shapes[0][0] # number of cycles it takes for output to get through empty systolic array rows
+    cycles1 = 2*inputMatrix1.shape[0] + inputMatrix1.shape[1] - 1
+    cycles2 = 2*inputMatrix2.shape[0] - 1
+    offset = output_shapes[1][0] - output_shapes[0][0] # account for padding between inputs
+    
+    ub.allocate_output(output_shapes[0])
+    ub.allocate_output(output_shapes[1])
+    for i in range(cycles1 + mmu_offset):
+        wf.cycle()
+        mmu.cycle()
+    ub.store_acc(acc, output_shapes[0], index=0)
+    for i in range(cycles2 + offset):
+        wf.cycle()
+        mmu.cycle()
+    ub.store_acc(acc, output_shapes[1], index=1)
+
+    ground_truth1 = np.matmul(inputMatrix1, weights1)
+    result1 = ub.sram_outputs[0]
+    assert np.array_equal(ground_truth1, result1)
+
+    ground_truth2 = np.matmul(inputMatrix2, weights2)
+    result2 = ub.sram_outputs[1]
+    assert np.array_equal(ground_truth2, result2)
+
+def test_double_input_different_weight_different_size_smaller():
+    inputMatrix1 = np.random.randint(1, 10, (MMU_ROWS, MMU_COLS))
+    inputMatrix2 = np.random.randint(1, 10, (MMU_ROWS//2, MMU_COLS//2))
+    weights1 = np.random.randint(1, 100, (MMU_ROWS, MMU_COLS))
+    weights2 = np.random.randint(1, 100, (MMU_ROWS//2, MMU_COLS//2))
+    
+    output_shapes = [[inputMatrix1.shape[0], weights1.shape[1]], [inputMatrix2.shape[0], weights2.shape[1]]]
+
+    ub, acc, mmu, wf = createTPU([inputMatrix1, inputMatrix2])
+
+    ub.store_input(inputMatrix1)
+    ub.store_input(inputMatrix2)
+
+    wf.add_weights(weights1)
+    wf.add_weights(weights2)
+
+    mmu_offset = MMU_ROWS - output_shapes[0][0] # number of cycles it takes for output to get through empty systolic array rows
+    cycles1 = 2*inputMatrix1.shape[0] + inputMatrix1.shape[1] - 1
+    cycles2 = 2*inputMatrix2.shape[0] - 1
 
     ub.allocate_output(output_shapes[0])
     ub.allocate_output(output_shapes[1])
-    for i in range(cycles1):
+    for i in range(cycles1 + mmu_offset):
         wf.cycle()
         mmu.cycle()
     ub.store_acc(acc, output_shapes[0], index=0)
@@ -164,74 +190,19 @@ def test_double_input_different_weight_different_size_larger(mmu_rows=6, mmu_col
     ub.store_acc(acc, output_shapes[1], index=1)
 
     ground_truth1 = np.matmul(inputMatrix1, weights1)
-    print("SYSTOLIC ARRAY MULTIPLICATION 1: ")
-    print(ub.sram_outputs[0])
-    print()
-    print("MATRIX MULTIPLICATION 1: ")
-    print(ground_truth1)
-    print()
+    result1 = ub.sram_outputs[0]
+    assert np.array_equal(ground_truth1, result1)
 
     ground_truth2 = np.matmul(inputMatrix2, weights2)
-    print("SYSTOLIC ARRAY MULTIPLICATION 2: ")
-    print(ub.sram_outputs[1])
-    print()
-    print("MATRIX MULTIPLICATION 2: ")
-    print(ground_truth2)
+    result2 = ub.sram_outputs[1]
+    assert np.array_equal(ground_truth2, result2)
 
-def test_double_input_different_weight_different_size_smaller(mmu_rows=6, mmu_cols=6):
-    # Sample input and weights
-    inputMatrix1 = np.array([[2, 3, 4, 5, 6], [7, 8, 9, 0, 1], [2, 3, 4, 5, 6], [7, 8, 9, 0, 1], [2, 3, 4, 5, 6]])
-    inputMatrix2 = np.array([[1, 2, 3], [4, 5, 6], [7, 8, 9]])
-    weights1 = np.array([[40, 50, 90, 45, 55], [70, 80, 30, 75, 85], [10, 20, 60, 15, 25], [30, 40, 70, 35, 45], [60, 70, 20, 65, 75]])
-    weights2 = np.array([[1, 2, 3], [4, 5, 6], [7, 8, 9]])
-    input_shapes = [inputMatrix1.shape, inputMatrix2.shape]
-    output_shapes = [[inputMatrix1.shape[0], weights1.shape[1]], [inputMatrix2.shape[0], weights2.shape[1]]]
+def test_large_single_input():
+    inputMatrix = np.random.randint(1, 50, (MMU_ROWS*2, MMU_COLS*2))
+    weights = np.random.randint(1, 50, (MMU_ROWS*2, MMU_COLS*2))
 
-    ub = UnifiedBuffer(mmu_rows)
-    ub.store_input(inputMatrix1)
-    ub.store_input(inputMatrix2)
-
-    acc = Accumulator(mmu_cols, 256)
-    mmu = MMU(mmu_rows, mmu_cols, ub, acc)
-    wf = WeightFIFO(mmu, input_shapes)
-    wf.add_weights(weights1)
-    wf.add_weights(weights2)
-
-    cycles1 = 14
-    cycles2 = 15
-
-    ub.allocate_output(output_shapes[0])
-    ub.allocate_output(output_shapes[1])
-    for i in range(cycles1):
-        wf.cycle()
-        mmu.cycle()
-    ub.store_acc(acc, output_shapes[0], index=0)
-    for i in range(cycles2):
-        wf.cycle()
-        mmu.cycle()
-    ub.store_acc(acc, output_shapes[1], index=1)
-
-    ground_truth1 = np.matmul(inputMatrix1, weights1)
-    print("SYSTOLIC ARRAY MULTIPLICATION 1: ")
-    print(ub.sram_outputs[0])
-    print()
-    print("MATRIX MULTIPLICATION 1: ")
-    print(ground_truth1)
-    print()
-
-    ground_truth2 = np.matmul(inputMatrix2, weights2)
-    print("SYSTOLIC ARRAY MULTIPLICATION 2: ")
-    print(ub.sram_outputs[1])
-    print()
-    print("MATRIX MULTIPLICATION 2: ")
-    print(ground_truth2)
-
-def test_large_single_input(mmu_rows=3, mmu_cols=3, input_size=(6,6), largest_block_size=3):
-    inputMatrix = np.random.randint(1, 50, input_size)
-    weights = np.random.randint(1, 50, input_size)
-
-    A, B, C, D = tile_matrix(inputMatrix, largest_block_size)
-    E, F, G, H = tile_matrix(weights, largest_block_size)
+    A, B, C, D = tile_matrix(inputMatrix, MMU_ROWS)
+    E, F, G, H = tile_matrix(weights, MMU_ROWS)
 
     input_shapes = [A.shape, B.shape, C.shape, D.shape, A.shape, B.shape, C.shape, D.shape]
     output_shape = [inputMatrix.shape[0], weights.shape[1]]
@@ -247,7 +218,8 @@ def test_large_single_input(mmu_rows=3, mmu_cols=3, input_size=(6,6), largest_bl
         [D.shape[0], H.shape[1]],
     ]
 
-    ub = UnifiedBuffer(mmu_rows)
+    ub, acc, mmu, wf = createTPU([A, B, C, D, A, B, C, D])
+
     ub.store_input(A)
     ub.store_input(B)
     ub.store_input(A)
@@ -257,9 +229,6 @@ def test_large_single_input(mmu_rows=3, mmu_cols=3, input_size=(6,6), largest_bl
     ub.store_input(C)
     ub.store_input(D)
 
-    acc = Accumulator(mmu_cols, 256)
-    mmu = MMU(mmu_rows, mmu_cols, ub, acc)
-    wf = WeightFIFO(mmu, input_shapes)
     wf.add_weights(E)
     wf.add_weights(G)
     wf.add_weights(F)
@@ -270,18 +239,22 @@ def test_large_single_input(mmu_rows=3, mmu_cols=3, input_size=(6,6), largest_bl
     wf.add_weights(H)
 
     ub.allocate_output(output_shape)
-    for i in range(mmu_rows - 1 + sub_output_shapes[0][0] - 1):
-        wf.cycle()
-        mmu.cycle()
-    
+
     for i in range(4): # tiled into 4 subsections
         shape = sub_output_shapes[i*2]
+        cycles1 = input_shapes[i*2][0] - 1
+        cycles2 = input_shapes[i*2+1][0] - 1
+        if i == 0:
+            cycles1 += MMU_ROWS + input_shapes[i*2][1]
+        else:
+            cycles1 += 2 # idk why this math works
+
         acc.set_acc_cap(shape[0])
-        for c in range(shape[0]):
+        for c in range(cycles1):
             wf.cycle()
             mmu.cycle()
         acc.set_acc_cap(acc.acc_size)
-        for c in range(shape[0]):
+        for c in range(cycles2):
             wf.cycle()
             mmu.cycle()
         
@@ -289,8 +262,5 @@ def test_large_single_input(mmu_rows=3, mmu_cols=3, input_size=(6,6), largest_bl
 
 
     ground_truth = np.matmul(inputMatrix, weights)
-    print("SYSTOLIC ARRAY MULTIPLICATION: ")
-    print(ub.sram_outputs[0])
-    print()
-    print("MATRIX MULTIPLICATION: ")
-    print(ground_truth)
+    result = ub.sram_outputs[0]
+    assert np.array_equal(result, ground_truth)
