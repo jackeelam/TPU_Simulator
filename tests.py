@@ -285,8 +285,6 @@ def test_large_single_input(mmu_rows=3, mmu_cols=3, input_size=(6,6), largest_bl
             wf.cycle()
             mmu.cycle()
         
-        acc.display()
-        print(i)
         ub.store_acc(acc, shape=shape, start_row=shape[0]*(i//2), start_col=shape[1]*(i%2))
 
 

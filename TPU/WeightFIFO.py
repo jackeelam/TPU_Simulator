@@ -80,3 +80,5 @@ class WeightFIFO:
         self.create_flooded_weights()
         self.mmu.update_weights(self.flood_weights)
         self.flood_indices = [i+1 for i in self.flood_indices]
+        print(self.flood_weights)
+        print()
