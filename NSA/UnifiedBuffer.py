@@ -34,18 +34,6 @@ class UnifiedBuffer:
             offset: Padding of zeros between the current input and previous input. This is used 
                     to manage situations when the current input is larger than the previous input
         """
-        input = self.sram[-1]
-        for row in range(self.systolic_array_size):
-            # pad with traingle of zeroes, along with offset padding
-            for i in range(np.clip(row - self.systolic_array_buffer[row].qsize(), 0, None) + offset):
-                self.systolic_array_buffer[row].put(0)
-
-            # insert input, or fill with zeros
-            buffer = np.zeros(input[0].shape[0])
-            if row < len(input):
-                buffer = input[row]
-            for element in buffer:
-                self.systolic_array_buffer[row].put(element)
 
     def display_systolic_array_buffer(self):
         """
@@ -67,12 +55,30 @@ class UnifiedBuffer:
         pre-allocated SRAM region
         """
         mat = accumulator.get_block(shape)
+        mat = np.flip(mat, axis=0)
         self.sram_outputs[index][start_row:start_row+mat.shape[0], start_col:start_col+mat.shape[1]] = mat
 
     def store_input(self, input):
         """
-        Calculate the padding and store the new input into the SRAM
+        Calculate the padding and store the new input into the SRAM and update the systolic array
+        buffer. Determines the offset which is the padding of zeros between the current input and 
+        previous input. This is used to manage situations when the current input is larger than the 
+        previous input
         """
         offset = 0 if len(self.sram) == 0 else np.clip(input.shape[0] - self.sram[-1].shape[0], 0, None)
+        for row in range(self.systolic_array_size):
+            # pad with traingle of zeroes, along with offset padding
+            for i in range(np.clip(row - self.systolic_array_buffer[row].qsize(), 0, None) + offset):
+                self.systolic_array_buffer[row].put(0)
+
+            # insert input, or fill with zeros
+            buffer = np.zeros(input[0].shape[0])
+            if row < len(input):
+                buffer = input[row]
+            for element in buffer:
+                self.systolic_array_buffer[row].put(element)
+
+            for i in range(input.shape[0] + 1):
+                self.systolic_array_buffer[row].put(0) # NSA pattern to pad pipeline with 0s
+
         self.sram.append(input)
-        self.update_systolic_array_buffer(offset)

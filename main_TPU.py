@@ -1,4 +1,4 @@
-from tests import *
+from test_TPU import *
 
 
 if __name__ == '__main__':

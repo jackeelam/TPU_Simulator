@@ -27,7 +27,7 @@ class Accumulator:
         """
         Stores the partial sums of the last MMU row in the accumulators.
         """
-        buffer = np.array([mac.result_partial_sum for mac in macs])
+        buffer = np.array([mac.result_output for mac in macs])
         if np.all(buffer == 0): # buffer of 0's means no relevent output
             return
         

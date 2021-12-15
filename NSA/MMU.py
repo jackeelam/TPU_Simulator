@@ -38,6 +38,7 @@ class MAC:
         self.input_activation = None
 
         self.result_partial_sum = 0
+        self.result_output = 0
         self.result_weight = 0
         self.result_activation = 0
 
@@ -54,23 +55,30 @@ class MAC:
             self.input_activation = self.activation_source.result_activation
 
         if self.y == 0:  # first row
+            self.input_result = 0
             if self.weight_source.empty():
                 self.input_weight = 0
             else:
                 self.input_weight = self.weight_source.get()
         else:
-            self.input_partial_sum = self.partial_sum_source.result_partial_sum
             self.input_weight = self.weight_source.result_weight
+            self.input_result = self.weight_source.result_output
 
     def compute(self):
         """
         Perform systolic array computation to result in output activation and partial sum
         """
-        self.result_partial_sum = self.input_partial_sum + (
-            self.input_weight * self.input_activation
-        )
         self.result_activation = self.input_activation
-        self.result_weight = self.input_weight
+        if self.input_activation == 0:
+            self.result_weight = self.input_weight
+            self.result_output = self.result_partial_sum
+            self.result_partial_sum = self.input_result
+        else:
+            self.result_partial_sum = self.result_partial_sum + (
+                self.input_weight * self.input_activation
+            )
+            self.result_weight = self.input_weight
+            self.result_output = 0
 
 
 class MMU:
@@ -117,3 +125,8 @@ class MMU:
         
         # store final row in the accumulators
         self.accumulator.accumulate_partial_sum(self.array[-1])
+
+    def display(self):
+        print(np.array([[mac.result_output for mac in row] for row in self.array]))
+        # print(np.array([[mac.result_partial_sum for mac in row] for row in self.array]))
+        # print(np.array([[mac.result_activation for mac in row] for row in self.array]))
