@@ -71,8 +71,23 @@ class UnifiedBuffer:
 
     def store_input(self, input):
         """
-        Calculate the padding and store the new input into the SRAM
+        Calculate the padding and store the new input into the SRAM and update the systolic array
+        buffer. Determines the offset which is the padding of zeros between the current input and 
+        previous input. This is used to manage situations when the current input is larger than the 
+        previous input
         """
         offset = 0 if len(self.sram) == 0 else np.clip(input.shape[0] - self.sram[-1].shape[0], 0, None)
+        input = input.T
+        for row in range(self.systolic_array_size):
+            # pad with traingle of zeroes, along with offset padding
+            for i in range(np.clip(row - self.systolic_array_buffer[row].qsize(), 0, None) + offset):
+                self.systolic_array_buffer[row].put(0)
+
+            # insert input, or fill with zeros
+            buffer = np.zeros(input[0].shape[0])
+            if row < len(input):
+                buffer = input[row]
+            for element in buffer:
+                self.systolic_array_buffer[row].put(element)
+
         self.sram.append(input)
-        self.update_systolic_array_buffer(offset)

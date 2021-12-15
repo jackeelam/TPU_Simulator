@@ -42,6 +42,29 @@ def test_single_input():
 
     assert np.array_equal(result, ground_truth)
 
+def test_single_input_small():
+    inputMatrix = np.random.randint(1, 10, (MMU_ROWS//2, MMU_COLS//2))
+    weights = np.random.randint(1, 100, (MMU_ROWS//2, MMU_COLS//2))
+    output_shape = [inputMatrix.shape[0], weights.shape[1]]
+
+    ub, acc, mmu, wf = createTPU([inputMatrix])
+
+    ub.store_input(inputMatrix)
+    wf.add_weights(weights)
+
+    mmu_offset = MMU_ROWS - output_shape[0] # number of cycles it takes for output to get through empty systolic array rows
+    cycles = 2*inputMatrix.shape[0] + inputMatrix.shape[1] - 1 # 2*rows + cols - 1
+
+    ub.allocate_output(output_shape)
+    for i in range(cycles + mmu_offset):
+        wf.cycle()
+        mmu.cycle()
+    ub.store_acc(acc, output_shape)
+
+    ground_truth = np.matmul(inputMatrix, weights)
+    result = ub.sram_outputs[0]
+    assert np.array_equal(result, ground_truth)
+
 def test_single_input_rectangular_horizontal():
     inputMatrix = np.random.randint(1, 10, (MMU_ROWS//3, MMU_COLS))
     weights = np.random.randint(1, 100, (MMU_ROWS, MMU_COLS//2))
@@ -83,13 +106,10 @@ def test_single_input_rectangular_vertical():
     for i in range(cycles):
         wf.cycle()
         mmu.cycle()
-        acc.display()
     ub.store_acc(acc, output_shape)
 
     ground_truth = np.matmul(inputMatrix, weights)
     result = ub.sram_outputs[0]
-    print(ground_truth)
-    print(result)
     assert np.array_equal(result, ground_truth)
 
 def test_double_input_same_weights():

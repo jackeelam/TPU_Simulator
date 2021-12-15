@@ -125,8 +125,3 @@ class MMU:
         
         # store final row in the accumulators
         self.accumulator.accumulate_partial_sum(self.array[-1])
-
-    def display(self):
-        print(np.array([[mac.result_output for mac in row] for row in self.array]))
-        # print(np.array([[mac.result_partial_sum for mac in row] for row in self.array]))
-        # print(np.array([[mac.result_activation for mac in row] for row in self.array]))
