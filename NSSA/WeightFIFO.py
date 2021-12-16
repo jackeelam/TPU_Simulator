@@ -34,6 +34,6 @@ class WeightFIFO:
                 self.weight_buffer[col].put(element)
 
             for i in range(weights.shape[0] + 1):
-                self.weight_buffer[col].put(0) # NSA pattern to pad pipeline with 0s
+                self.weight_buffer[col].put(0) # NSSA pattern to pad pipeline with 0s
 
         self.weights.append(weights)

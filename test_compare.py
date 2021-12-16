@@ -1,5 +1,5 @@
 import numpy as np
-from utilities import calculate_num_cycles_TPU, calculate_num_cycles_NSA
+from utilities import calculate_num_cycles_TPU, calculate_num_cycles_NSSA
 
 import matplotlib.pyplot as plt
 
@@ -44,14 +44,14 @@ def calculate_TPU_cycle_time(n_matrices):
 
     return total_cycles
 
-def calculate_NSA_cycle_time(n_matrices):
+def calculate_NSSA_cycle_time(n_matrices):
     inputs = np.random.randint(1, 5, (n_matrices, MMU_ROWS, MMU_COLS))
     weights = np.random.randint(1, 5, (n_matrices, MMU_ROWS, MMU_COLS))
 
     input_shapes = [i.shape for i in inputs]
     output_shapes = [[i.shape[0], w.shape[1]] for i, w in zip(inputs, weights)]
 
-    from NSA import UnifiedBuffer, MMU, Accumulator, WeightFIFO
+    from NSSA import UnifiedBuffer, MMU, Accumulator, WeightFIFO
 
     ub = UnifiedBuffer(MMU_ROWS)
     acc = Accumulator(MMU_COLS, ACCUMULATOR_SIZE)
@@ -66,7 +66,7 @@ def calculate_NSA_cycle_time(n_matrices):
 
     for i in range(n_matrices):
         shape = output_shapes[i]
-        cycles = calculate_num_cycles_NSA(input_shapes[i], shape, MMU_ROWS, None if i == 0 else input_shapes[i-1])
+        cycles = calculate_num_cycles_NSSA(input_shapes[i], shape, MMU_ROWS, None if i == 0 else input_shapes[i-1])
 
         ub.allocate_output(shape)
         for c in range(cycles):
@@ -83,13 +83,13 @@ def calculate_NSA_cycle_time(n_matrices):
 if __name__ == '__main__':
     n_matrices = [1, 3, 10, 20]
     cycles_tpu = []
-    cycles_nsa = []
+    cycles_NSSA = []
     for n in n_matrices:
         cycles_tpu.append(calculate_num_cycles_TPU())
-        cycles_nsa.append(calculate_num_cycles_NSA())
+        cycles_NSSA.append(calculate_num_cycles_NSSA())
     print(cycles_tpu)
-    print(cycles_nsa)
+    print(cycles_NSSA)
     plt.plot(n_matrices, cycles_tpu, label = "TPU")
-    plt.plot(n_matrices, cycles_nsa, label = "NSA")
+    plt.plot(n_matrices, cycles_NSSA, label = "NSSA")
     plt.legend()
     plt.show()

@@ -1,7 +1,7 @@
 import numpy as np
 
-from utilities import tile_matrix, calculate_num_cycles_NSA
-from NSA import *
+from utilities import tile_matrix, calculate_num_cycles_NSSA
+from NSSA import *
 
 MMU_ROWS = 128
 MMU_COLS = 128
@@ -9,7 +9,7 @@ MMU_COLS = 128
 ACCUMULATOR_SIZE = 4096
 
 
-def createNSA():
+def createNSSA():
     ub = UnifiedBuffer(MMU_ROWS)
     acc = Accumulator(MMU_COLS, ACCUMULATOR_SIZE)
     wf = WeightFIFO(MMU_COLS)
@@ -22,12 +22,12 @@ def test_single_input():
     weights = np.random.randint(1, 100, (MMU_ROWS, MMU_COLS))
     output_shape = [inputMatrix.shape[0], weights.shape[1]]
 
-    ub, acc, mmu, wf = createNSA()
+    ub, acc, mmu, wf = createNSSA()
 
     ub.store_input(inputMatrix)
     wf.add_weights(weights)
 
-    cycles = calculate_num_cycles_NSA(inputMatrix.shape, output_shape, MMU_ROWS)
+    cycles = calculate_num_cycles_NSSA(inputMatrix.shape, output_shape, MMU_ROWS)
 
     ub.allocate_output(output_shape)
     for i in range(cycles):
@@ -43,12 +43,12 @@ def test_single_input_small():
     weights = np.random.randint(1, 100, (MMU_ROWS//2, MMU_COLS//2))
     output_shape = [inputMatrix.shape[0], weights.shape[1]]
 
-    ub, acc, mmu, wf = createNSA()
+    ub, acc, mmu, wf = createNSSA()
 
     ub.store_input(inputMatrix)
     wf.add_weights(weights)
 
-    cycles = calculate_num_cycles_NSA(inputMatrix.shape, output_shape, MMU_ROWS)
+    cycles = calculate_num_cycles_NSSA(inputMatrix.shape, output_shape, MMU_ROWS)
 
     ub.allocate_output(output_shape)
     for i in range(cycles):
@@ -64,12 +64,12 @@ def test_single_input_rectangular_horizontal():
     weights = np.random.randint(1, 100, (MMU_ROWS, MMU_COLS//2))
     output_shape = [inputMatrix.shape[0], weights.shape[1]]
 
-    ub, acc, mmu, wf = createNSA()
+    ub, acc, mmu, wf = createNSSA()
 
     ub.store_input(inputMatrix)
     wf.add_weights(weights)
 
-    cycles = calculate_num_cycles_NSA(inputMatrix.shape, output_shape, MMU_ROWS)
+    cycles = calculate_num_cycles_NSSA(inputMatrix.shape, output_shape, MMU_ROWS)
 
     ub.allocate_output(output_shape)
     for i in range(cycles):
@@ -86,12 +86,12 @@ def test_single_input_rectangular_vertical():
     weights = np.random.randint(1, 100, (MMU_ROWS//3, MMU_COLS//2))
     output_shape = [inputMatrix.shape[0], weights.shape[1]]
 
-    ub, acc, mmu, wf = createNSA()
+    ub, acc, mmu, wf = createNSSA()
 
     ub.store_input(inputMatrix)
     wf.add_weights(weights)
 
-    cycles = calculate_num_cycles_NSA(inputMatrix.shape, output_shape, MMU_ROWS)
+    cycles = calculate_num_cycles_NSSA(inputMatrix.shape, output_shape, MMU_ROWS)
 
     ub.allocate_output(output_shape)
 
@@ -109,7 +109,7 @@ def test_double_input_same_weights():
     weights = np.random.randint(1, 100, (MMU_ROWS, MMU_COLS))
     output_shapes = [[inputMatrix1.shape[0], weights.shape[1]], [inputMatrix2.shape[0], weights.shape[1]]]
 
-    ub, acc, mmu, wf = createNSA()
+    ub, acc, mmu, wf = createNSSA()
 
     ub.store_input(inputMatrix1)
     ub.store_input(inputMatrix2)
@@ -117,8 +117,8 @@ def test_double_input_same_weights():
     wf.add_weights(weights)
     wf.add_weights(weights)
 
-    cycles1 = calculate_num_cycles_NSA(inputMatrix1.shape, output_shapes[0], MMU_ROWS)
-    cycles2 = calculate_num_cycles_NSA(inputMatrix2.shape, output_shapes[1], MMU_ROWS, inputMatrix1.shape)
+    cycles1 = calculate_num_cycles_NSSA(inputMatrix1.shape, output_shapes[0], MMU_ROWS)
+    cycles2 = calculate_num_cycles_NSSA(inputMatrix2.shape, output_shapes[1], MMU_ROWS, inputMatrix1.shape)
 
     ub.allocate_output(output_shapes[0])
     ub.allocate_output(output_shapes[1])
@@ -146,7 +146,7 @@ def test_double_input_different_weights():
     
     output_shapes = [[inputMatrix1.shape[0], weights1.shape[1]], [inputMatrix2.shape[0], weights2.shape[1]]]
 
-    ub, acc, mmu, wf = createNSA()
+    ub, acc, mmu, wf = createNSSA()
 
     ub.store_input(inputMatrix1)
     ub.store_input(inputMatrix2)
@@ -154,8 +154,8 @@ def test_double_input_different_weights():
     wf.add_weights(weights1)
     wf.add_weights(weights2)
 
-    cycles1 = calculate_num_cycles_NSA(inputMatrix1.shape, output_shapes[0], MMU_ROWS)
-    cycles2 = calculate_num_cycles_NSA(inputMatrix2.shape, output_shapes[1], MMU_ROWS, inputMatrix1.shape)
+    cycles1 = calculate_num_cycles_NSSA(inputMatrix1.shape, output_shapes[0], MMU_ROWS)
+    cycles2 = calculate_num_cycles_NSSA(inputMatrix2.shape, output_shapes[1], MMU_ROWS, inputMatrix1.shape)
 
     ub.allocate_output(output_shapes[0])
     ub.allocate_output(output_shapes[1])
@@ -183,7 +183,7 @@ def test_double_input_different_weight_different_size_larger():
     
     output_shapes = [[inputMatrix1.shape[0], weights1.shape[1]], [inputMatrix2.shape[0], weights2.shape[1]]]
 
-    ub, acc, mmu, wf = createNSA()
+    ub, acc, mmu, wf = createNSSA()
 
     ub.store_input(inputMatrix1)
     ub.store_input(inputMatrix2)
@@ -221,7 +221,7 @@ def test_double_input_different_weight_different_size_smaller():
     
     output_shapes = [[inputMatrix1.shape[0], weights1.shape[1]], [inputMatrix2.shape[0], weights2.shape[1]]]
 
-    ub, acc, mmu, wf = createNSA()
+    ub, acc, mmu, wf = createNSSA()
 
     ub.store_input(inputMatrix1)
     ub.store_input(inputMatrix2)
@@ -272,7 +272,7 @@ def test_large_single_input():
         [D.shape[0], H.shape[1]],
     ]
 
-    ub, acc, mmu, wf = createNSA()
+    ub, acc, mmu, wf = createNSSA()
 
     ub.store_input(A)
     ub.store_input(B)
@@ -296,8 +296,8 @@ def test_large_single_input():
 
     for i in range(4): # tiled into 4 subsections
         shape = sub_output_shapes[i*2]
-        cycles1 = calculate_num_cycles_NSA(input_shapes[i*2], shape, MMU_ROWS, None if i == 0 else input_shapes[i*2-1])
-        cycles2 = calculate_num_cycles_NSA(input_shapes[i*2+1], shape, MMU_ROWS, input_shapes[i*2])
+        cycles1 = calculate_num_cycles_NSSA(input_shapes[i*2], shape, MMU_ROWS, None if i == 0 else input_shapes[i*2-1])
+        cycles2 = calculate_num_cycles_NSSA(input_shapes[i*2+1], shape, MMU_ROWS, input_shapes[i*2])
 
         acc.set_acc_cap(shape[0])
         for c in range(cycles1):

@@ -70,6 +70,6 @@ class UnifiedBuffer:
                 self.systolic_array_buffer[row].put(element)
 
             for i in range(input.shape[0] + 1):
-                self.systolic_array_buffer[row].put(0) # NSA pattern to pad pipeline with 0s
+                self.systolic_array_buffer[row].put(0) # NSSA pattern to pad pipeline with 0s
 
         self.sram.append(input)
