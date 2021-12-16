@@ -12,3 +12,17 @@ def tile_matrix(M, largest_submatrix_size):
     D = M[n_A:, n_A:]
 
     return A, B, C, D
+
+def calculate_num_cycles_TPU(input_shape, output_shape, mmu_rows, prev_pipeline_input_shape=None):
+    if prev_pipeline_input_shape == None:
+        offset = mmu_rows - output_shape[1] - 1 # number of cycles it takes for output to get through empty systolic array rows
+    else:
+        offset =  -np.clip(prev_pipeline_input_shape[1] - input_shape[1], None, 0) - (prev_pipeline_input_shape[0] + prev_pipeline_input_shape[1] - 1)
+    return input_shape[0] + input_shape[1] + output_shape[0] - 1 + offset
+
+def calculate_num_cycles_NSA(input_shape, output_shape, mmu_rows, prev_pipeline_input_shape=None):
+    if prev_pipeline_input_shape == None:
+        offset = (mmu_rows - output_shape[1] + 1) * 2
+    else:
+        offset = -np.clip(prev_pipeline_input_shape[1] - input_shape[1], None, 0) - (output_shape[0] + 2)
+    return 2*input_shape[0] + input_shape[1] + output_shape[1] - 2 + offset

@@ -41,7 +41,7 @@ class UnifiedBuffer:
                 self.systolic_array_buffer[row].put(0)
 
             # insert input, or fill with zeros
-            buffer = np.zeros(input[0].shape[0])
+            buffer = np.zeros(input[0].shape[0], dtype=np.int32)
             if row < len(input):
                 buffer = input[row]
             for element in buffer:
@@ -59,7 +59,7 @@ class UnifiedBuffer:
         Allocate region of SRAM for the MMU output to be stored. Particularly important when
         the output is tiled and needs to be combined after performing submatrix multiplications
         """
-        self.sram_outputs.append(np.zeros(shape, dtype=np.int16))
+        self.sram_outputs.append(np.zeros(shape, dtype=np.int32))
 
     def store_acc(self, accumulator, shape, index=0, start_row=0, start_col=0):
         """
@@ -84,7 +84,7 @@ class UnifiedBuffer:
                 self.systolic_array_buffer[row].put(0)
 
             # insert input, or fill with zeros
-            buffer = np.zeros(input[0].shape[0])
+            buffer = np.zeros(input[0].shape[0], dtype=np.int32)
             if row < len(input):
                 buffer = input[row]
             for element in buffer:
