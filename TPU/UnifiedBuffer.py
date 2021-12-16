@@ -61,7 +61,7 @@ class UnifiedBuffer:
         """
         self.sram_outputs.append(np.zeros(shape, dtype=np.int32))
 
-    def store_acc(self, accumulator, shape, index=0, start_row=0, start_col=0):
+    def store_acc(self, accumulator, shape, index=-1, start_row=0, start_col=0):
         """
         Extract a region of the accumulators and store it in the correct region of the specified 
         pre-allocated SRAM region

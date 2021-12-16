@@ -26,15 +26,6 @@ class UnifiedBuffer:
         for i in range(systolic_array_rows):
             self.systolic_array_buffer.append(Queue()) # init with empty queues
 
-    def update_systolic_array_buffer(self, offset=0):
-        """
-        Update the systolic array buffer with additional inputs
-
-        Parameters:
-            offset: Padding of zeros between the current input and previous input. This is used 
-                    to manage situations when the current input is larger than the previous input
-        """
-
     def display_systolic_array_buffer(self):
         """
         Test function to output current state of systolic array
@@ -49,7 +40,7 @@ class UnifiedBuffer:
         """
         self.sram_outputs.append(np.zeros(shape, dtype=np.int32))
 
-    def store_acc(self, accumulator, shape, index=0, start_row=0, start_col=0):
+    def store_acc(self, accumulator, shape, index=-1, start_row=0, start_col=0):
         """
         Extract a region of the accumulators and store it in the correct region of the specified 
         pre-allocated SRAM region
