@@ -3,8 +3,8 @@ import numpy as np
 from utilities import tile_matrix, calculate_num_cycles_NSA
 from NSA import *
 
-MMU_ROWS = 5
-MMU_COLS = 5
+MMU_ROWS = 128
+MMU_COLS = 128
 
 ACCUMULATOR_SIZE = 4096
 
@@ -252,8 +252,8 @@ def test_double_input_different_weight_different_size_smaller():
     assert np.array_equal(ground_truth2, result2)
 
 def test_large_single_input():
-    inputMatrix = np.random.randint(1, 50, (MMU_ROWS*2, MMU_COLS*2))
-    weights = np.random.randint(1, 50, (MMU_ROWS*2, MMU_COLS*2))
+    inputMatrix = np.random.randint(1, 10, (MMU_ROWS*2, MMU_COLS*2))
+    weights = np.random.randint(1, 10, (MMU_ROWS*2, MMU_COLS*2))
 
     A, B, C, D = tile_matrix(inputMatrix, MMU_ROWS)
     E, F, G, H = tile_matrix(weights, MMU_ROWS)

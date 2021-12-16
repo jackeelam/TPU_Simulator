@@ -3,8 +3,8 @@ import numpy as np
 from utilities import tile_matrix, calculate_num_cycles_TPU
 from TPU import *
 
-MMU_ROWS = 100
-MMU_COLS = 100
+MMU_ROWS = 128
+MMU_COLS = 128
 
 ACCUMULATOR_SIZE = 4096
 
