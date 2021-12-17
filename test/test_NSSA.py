@@ -1,61 +1,65 @@
 import numpy as np
 
-from utilities import tile_matrix, calculate_num_cycles_TPU
-from TPU import *
+from utilities import tile_matrix, calculate_num_cycles_NSSA
+from NSSA import *
 
-MMU_ROWS = 64
-MMU_COLS = 64
+MMU_ROWS = 128
+MMU_COLS = 128
 
 ACCUMULATOR_SIZE = 4096
 
 
-def createTPU(inputs):
+def createNSSA():
     ub = UnifiedBuffer(MMU_ROWS)
     acc = Accumulator(MMU_COLS, ACCUMULATOR_SIZE)
-    mmu = MMU(MMU_ROWS, MMU_COLS, ub, acc)
-    input_shapes = [input.shape for input in inputs]
-    wf = WeightFIFO(mmu, input_shapes)
+    wf = WeightFIFO(MMU_COLS)
+    mmu = MMU(MMU_ROWS, MMU_COLS, ub, wf, acc)
 
     return ub, acc, mmu, wf
 
 def test_single_input():
+    '''
+    Test case for single matrix multiplication with the same size as the systolic array (NxN)
+    A(NxN) * B(NxN) = C(NxN)
+    '''
     inputMatrix = np.random.randint(1, 10, (MMU_ROWS, MMU_COLS))
     weights = np.random.randint(1, 100, (MMU_ROWS, MMU_COLS))
     output_shape = [inputMatrix.shape[0], weights.shape[1]]
 
-    ub, acc, mmu, wf = createTPU([inputMatrix])
+    ub, acc, mmu, wf = createNSSA()
 
     ub.store_input(inputMatrix)
     wf.add_weights(weights)
 
-    cycles = calculate_num_cycles_TPU(inputMatrix.shape, output_shape, MMU_ROWS)
+    cycles = calculate_num_cycles_NSSA(inputMatrix.shape, output_shape, MMU_ROWS)
 
     ub.allocate_output(output_shape)
     for i in range(cycles):
-        wf.cycle()
         mmu.cycle()
     ub.store_acc(acc, output_shape)
 
     ground_truth = np.matmul(inputMatrix, weights)
     result = ub.sram_outputs[0]
-
     assert np.array_equal(result, ground_truth)
 
 def test_single_input_small():
+    '''
+    Test case for single matrix multiplication with smaller dimensions than the systolic array (NxN)
+    A(MxM) * B(MxM) = C(MxM), M < N
+    '''
     inputMatrix = np.random.randint(1, 10, (MMU_ROWS//2, MMU_COLS//2))
     weights = np.random.randint(1, 100, (MMU_ROWS//2, MMU_COLS//2))
     output_shape = [inputMatrix.shape[0], weights.shape[1]]
 
-    ub, acc, mmu, wf = createTPU([inputMatrix])
+    ub, acc, mmu, wf = createNSSA()
 
     ub.store_input(inputMatrix)
     wf.add_weights(weights)
 
-    cycles = calculate_num_cycles_TPU(inputMatrix.shape, output_shape, MMU_ROWS)
+    cycles = calculate_num_cycles_NSSA(inputMatrix.shape, output_shape, MMU_ROWS)
 
     ub.allocate_output(output_shape)
     for i in range(cycles):
-        wf.cycle()
         mmu.cycle()
     ub.store_acc(acc, output_shape)
 
@@ -64,20 +68,23 @@ def test_single_input_small():
     assert np.array_equal(result, ground_truth)
 
 def test_single_input_rectangular_horizontal():
+    '''
+    Test case for single rectangular matrix multiplication with the same width as systolic array (NxN)
+    A(MxN) * B(NxP) = C(MxP), M < N and P < N
+    '''
     inputMatrix = np.random.randint(1, 10, (MMU_ROWS//3, MMU_COLS))
     weights = np.random.randint(1, 100, (MMU_ROWS, MMU_COLS//2))
     output_shape = [inputMatrix.shape[0], weights.shape[1]]
 
-    ub, acc, mmu, wf = createTPU([inputMatrix])
+    ub, acc, mmu, wf = createNSSA()
 
     ub.store_input(inputMatrix)
     wf.add_weights(weights)
 
-    cycles = calculate_num_cycles_TPU(inputMatrix.shape, output_shape, MMU_ROWS)
+    cycles = calculate_num_cycles_NSSA(inputMatrix.shape, output_shape, MMU_ROWS)
 
     ub.allocate_output(output_shape)
     for i in range(cycles):
-        wf.cycle()
         mmu.cycle()
     ub.store_acc(acc, output_shape)
 
@@ -87,20 +94,24 @@ def test_single_input_rectangular_horizontal():
 
 
 def test_single_input_rectangular_vertical():
+    '''
+    Test case for single rectangular matrix multiplication with the same height as systolic array (NxN)
+    A(NxM) * B(PxN) = C(NxN), M < N and P < N
+    '''
     inputMatrix = np.random.randint(1, 10, (MMU_ROWS, MMU_COLS//3))
     weights = np.random.randint(1, 100, (MMU_ROWS//3, MMU_COLS//2))
     output_shape = [inputMatrix.shape[0], weights.shape[1]]
 
-    ub, acc, mmu, wf = createTPU([inputMatrix])
+    ub, acc, mmu, wf = createNSSA()
 
     ub.store_input(inputMatrix)
     wf.add_weights(weights)
-    
-    cycles = calculate_num_cycles_TPU(inputMatrix.shape, output_shape, MMU_ROWS)
+
+    cycles = calculate_num_cycles_NSSA(inputMatrix.shape, output_shape, MMU_ROWS)
 
     ub.allocate_output(output_shape)
+
     for i in range(cycles):
-        wf.cycle()
         mmu.cycle()
     ub.store_acc(acc, output_shape)
 
@@ -109,12 +120,17 @@ def test_single_input_rectangular_vertical():
     assert np.array_equal(result, ground_truth)
 
 def test_double_input_same_weights():
+    '''
+    Test case for two pipelined matrix multiplications with the same size as systolic array (NxN)
+    A(NxN) * W(NxN) = X(NxN)
+    B(NxN) * W(NxN) = Y(NxN)
+    '''
     inputMatrix1 = np.random.randint(1, 10, (MMU_ROWS, MMU_COLS))
     inputMatrix2 = np.random.randint(1, 10, (MMU_ROWS, MMU_COLS))
     weights = np.random.randint(1, 100, (MMU_ROWS, MMU_COLS))
     output_shapes = [[inputMatrix1.shape[0], weights.shape[1]], [inputMatrix2.shape[0], weights.shape[1]]]
 
-    ub, acc, mmu, wf = createTPU([inputMatrix1, inputMatrix2])
+    ub, acc, mmu, wf = createNSSA()
 
     ub.store_input(inputMatrix1)
     ub.store_input(inputMatrix2)
@@ -122,17 +138,15 @@ def test_double_input_same_weights():
     wf.add_weights(weights)
     wf.add_weights(weights)
 
-    cycles1 = calculate_num_cycles_TPU(inputMatrix1.shape, output_shapes[0], MMU_ROWS)
-    cycles2 = calculate_num_cycles_TPU(inputMatrix2.shape, output_shapes[1], MMU_ROWS, inputMatrix1.shape)
+    cycles1 = calculate_num_cycles_NSSA(inputMatrix1.shape, output_shapes[0], MMU_ROWS)
+    cycles2 = calculate_num_cycles_NSSA(inputMatrix2.shape, output_shapes[1], MMU_ROWS, inputMatrix1.shape)
 
     ub.allocate_output(output_shapes[0])
     ub.allocate_output(output_shapes[1])
     for i in range(cycles1):
-        wf.cycle()
         mmu.cycle()
     ub.store_acc(acc, output_shapes[0], index=0)
     for i in range(cycles2):
-        wf.cycle()
         mmu.cycle()
     ub.store_acc(acc, output_shapes[1], index=1)
 
@@ -146,6 +160,11 @@ def test_double_input_same_weights():
 
 
 def test_double_input_different_weights():
+    '''
+    Test case for two pipelined matrix multiplications with the same size as systolic array (NxN)
+    A(NxN) * W1(NxN) = X(NxN)
+    B(NxN) * W2(NxN) = Y(NxN)
+    '''
     inputMatrix1 = np.random.randint(1, 10, (MMU_ROWS, MMU_COLS))
     inputMatrix2 = np.random.randint(1, 10, (MMU_ROWS, MMU_COLS))
     weights1 = np.random.randint(1, 100, (MMU_ROWS, MMU_COLS))
@@ -153,7 +172,7 @@ def test_double_input_different_weights():
     
     output_shapes = [[inputMatrix1.shape[0], weights1.shape[1]], [inputMatrix2.shape[0], weights2.shape[1]]]
 
-    ub, acc, mmu, wf = createTPU([inputMatrix1, inputMatrix2])
+    ub, acc, mmu, wf = createNSSA()
 
     ub.store_input(inputMatrix1)
     ub.store_input(inputMatrix2)
@@ -161,17 +180,15 @@ def test_double_input_different_weights():
     wf.add_weights(weights1)
     wf.add_weights(weights2)
 
-    cycles1 = calculate_num_cycles_TPU(inputMatrix1.shape, output_shapes[0], MMU_ROWS)
-    cycles2 = calculate_num_cycles_TPU(inputMatrix2.shape, output_shapes[1], MMU_ROWS, inputMatrix1.shape)
+    cycles1 = calculate_num_cycles_NSSA(inputMatrix1.shape, output_shapes[0], MMU_ROWS)
+    cycles2 = calculate_num_cycles_NSSA(inputMatrix2.shape, output_shapes[1], MMU_ROWS, inputMatrix1.shape)
 
     ub.allocate_output(output_shapes[0])
     ub.allocate_output(output_shapes[1])
     for i in range(cycles1):
-        wf.cycle()
         mmu.cycle()
     ub.store_acc(acc, output_shapes[0], index=0)
     for i in range(cycles2):
-        wf.cycle()
         mmu.cycle()
     ub.store_acc(acc, output_shapes[1], index=1)
 
@@ -185,6 +202,12 @@ def test_double_input_different_weights():
 
 
 def test_double_input_different_weight_different_size_larger():
+    '''
+    Test case for two pipelined matrix multiplications. The first multiplication is smaller than
+    the systolic array size, and the second larger multiplication is the same size as the systolic array (NxN)
+    A(MxM) * W1(MxM) = X(MxM), M < N
+    B(NxN) * W2(NxN) = Y(NxN)
+    '''
     inputMatrix1 = np.random.randint(1, 10, (MMU_ROWS//2, MMU_COLS//2))
     inputMatrix2 = np.random.randint(1, 10, (MMU_ROWS, MMU_COLS))
     weights1 = np.random.randint(1, 100, (MMU_ROWS//2, MMU_COLS//2))
@@ -192,7 +215,7 @@ def test_double_input_different_weight_different_size_larger():
     
     output_shapes = [[inputMatrix1.shape[0], weights1.shape[1]], [inputMatrix2.shape[0], weights2.shape[1]]]
 
-    ub, acc, mmu, wf = createTPU([inputMatrix1, inputMatrix2])
+    ub, acc, mmu, wf = createNSSA()
 
     ub.store_input(inputMatrix1)
     ub.store_input(inputMatrix2)
@@ -200,17 +223,17 @@ def test_double_input_different_weight_different_size_larger():
     wf.add_weights(weights1)
     wf.add_weights(weights2)
 
-    cycles1 = calculate_num_cycles_TPU(inputMatrix1.shape, output_shapes[0], MMU_ROWS)
-    cycles2 = calculate_num_cycles_TPU(inputMatrix2.shape, output_shapes[1], MMU_ROWS, inputMatrix1.shape)
-    
+    mmu_offset_cycles = (MMU_ROWS - output_shapes[0][0]) * 2 # mmu offset
+    cycles1 = 2*inputMatrix1.shape[0] + inputMatrix1.shape[1] + weights1.shape[1] - 2 # processing time
+    cycles2 = 2*inputMatrix2.shape[0] + inputMatrix2.shape[1] + weights2.shape[1] - 2 # processing time
+    offset = (weights1.shape[0] + 1) + 2 - (output_shapes[1][0] - output_shapes[0][0])
+
     ub.allocate_output(output_shapes[0])
     ub.allocate_output(output_shapes[1])
-    for i in range(cycles1):
-        wf.cycle()
+    for i in range(cycles1 + mmu_offset_cycles):
         mmu.cycle()
     ub.store_acc(acc, output_shapes[0], index=0)
-    for i in range(cycles2):
-        wf.cycle()
+    for i in range(cycles2 - offset):
         mmu.cycle()
     ub.store_acc(acc, output_shapes[1], index=1)
 
@@ -223,6 +246,12 @@ def test_double_input_different_weight_different_size_larger():
     assert np.array_equal(ground_truth2, result2)
 
 def test_double_input_different_weight_different_size_smaller():
+    '''
+    Test case for two pipelined matrix multiplications. The first multiplication is the same size as the 
+    systolic array (NxN), and the second smaller multiplication is smaller than the systolic array size
+    A(NxN) * W1(NxN) = X(NxN)
+    B(MxM) * W2(MxM) = Y(MxM), M < N
+    '''
     inputMatrix1 = np.random.randint(1, 10, (MMU_ROWS, MMU_COLS))
     inputMatrix2 = np.random.randint(1, 10, (MMU_ROWS//2, MMU_COLS//2))
     weights1 = np.random.randint(1, 100, (MMU_ROWS, MMU_COLS))
@@ -230,7 +259,7 @@ def test_double_input_different_weight_different_size_smaller():
     
     output_shapes = [[inputMatrix1.shape[0], weights1.shape[1]], [inputMatrix2.shape[0], weights2.shape[1]]]
 
-    ub, acc, mmu, wf = createTPU([inputMatrix1, inputMatrix2])
+    ub, acc, mmu, wf = createNSSA()
 
     ub.store_input(inputMatrix1)
     ub.store_input(inputMatrix2)
@@ -238,17 +267,17 @@ def test_double_input_different_weight_different_size_smaller():
     wf.add_weights(weights1)
     wf.add_weights(weights2)
 
-    cycles1 = calculate_num_cycles_TPU(inputMatrix1.shape, output_shapes[0], MMU_ROWS)
-    cycles2 = calculate_num_cycles_TPU(inputMatrix2.shape, output_shapes[1], MMU_ROWS, inputMatrix1.shape)
+    mmu_offset_cycles = (MMU_ROWS - output_shapes[0][0]) * 2 # mmu offset
+    cycles1 = 2*inputMatrix1.shape[0] + inputMatrix1.shape[1] + weights1.shape[1] - 2 # processing time
+    cycles2 = 2*inputMatrix2.shape[0] + inputMatrix2.shape[1] + weights2.shape[1] - 2 # processing time
+    offset =  (output_shapes[1][0] - output_shapes[0][0]) - (weights1.shape[0] + 1) + 2
 
     ub.allocate_output(output_shapes[0])
     ub.allocate_output(output_shapes[1])
-    for i in range(cycles1):
-        wf.cycle()
+    for i in range(cycles1 + mmu_offset_cycles):
         mmu.cycle()
     ub.store_acc(acc, output_shapes[0], index=0)
-    for i in range(cycles2):
-        wf.cycle()
+    for i in range(cycles2 - offset):
         mmu.cycle()
     ub.store_acc(acc, output_shapes[1], index=1)
 
@@ -261,6 +290,16 @@ def test_double_input_different_weight_different_size_smaller():
     assert np.array_equal(ground_truth2, result2)
 
 def test_large_single_input():
+    '''
+    Test case for a single matrix multiplication that is larger than the systolic array size (NxN). 
+    Using the divide and conquer technique, we can 
+    X(MxM) * Y(MxM) = Z(MxM), M > N
+    [ 
+        [AE + BG, AF + BH],
+        [CE + DG, CF + DH]
+    ]
+    where the size of all submatrices A, B, C, D, E, F, G, H are all PxP where P <= N
+    '''
     inputMatrix = np.random.randint(1, 10, (MMU_ROWS*2, MMU_COLS*2))
     weights = np.random.randint(1, 10, (MMU_ROWS*2, MMU_COLS*2))
 
@@ -281,7 +320,7 @@ def test_large_single_input():
         [D.shape[0], H.shape[1]],
     ]
 
-    ub, acc, mmu, wf = createTPU([A, B, C, D, A, B, C, D])
+    ub, acc, mmu, wf = createNSSA()
 
     ub.store_input(A)
     ub.store_input(B)
@@ -305,20 +344,16 @@ def test_large_single_input():
 
     for i in range(4): # tiled into 4 subsections
         shape = sub_output_shapes[i*2]
-        cycles1 = calculate_num_cycles_TPU(input_shapes[i*2], shape, MMU_ROWS, None if i == 0 else input_shapes[i*2-1])
-        cycles2 = calculate_num_cycles_TPU(input_shapes[i*2+1], shape, MMU_ROWS, input_shapes[i*2])
+        cycles1 = calculate_num_cycles_NSSA(input_shapes[i*2], shape, MMU_ROWS, None if i == 0 else input_shapes[i*2-1])
+        cycles2 = calculate_num_cycles_NSSA(input_shapes[i*2+1], shape, MMU_ROWS, input_shapes[i*2])
 
         acc.set_acc_cap(shape[0])
         for c in range(cycles1):
-            wf.cycle()
             mmu.cycle()
         acc.set_acc_cap(acc.acc_size)
         for c in range(cycles2):
-            wf.cycle()
             mmu.cycle()
-
         ub.store_acc(acc, shape=shape, start_row=shape[0]*(i//2), start_col=shape[1]*(i%2))
-
 
     ground_truth = np.matmul(inputMatrix, weights)
     result = ub.sram_outputs[0]
