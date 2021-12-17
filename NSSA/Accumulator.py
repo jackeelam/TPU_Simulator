@@ -55,12 +55,14 @@ class Accumulator:
         Test function to print the top n rows of the accumulators
         """
         print('ACCUMULATOR: ')
+        print('\t' + '\t'.join([Back.BLUE + f"{i:02}" + Back.RESET for i in range(self.acc.shape[1])]))
+        print()
         for i in range(n):
-            line = ''
+            line = Back.BLUE + '\t' + f"{i:02}" + '\t' + Back.RESET
             for j in range(len(self.acc[i])):
                 val = self.acc[i,j]
                 if self.changed[j] == i:
-                    line += Back.GREEN + str(val) + Back.RESET + '\t'
+                    line += Back.GREEN + Style.BRIGHT + str(val) + Style.RESET_ALL + Back.RESET + '\t'
                 else:
                     line += str(val) + '\t'
 
