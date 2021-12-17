@@ -3,8 +3,8 @@ from utilities import calculate_num_cycles_TPU, calculate_num_cycles_NSSA
 
 import matplotlib.pyplot as plt
 
-MMU_ROWS = 128
-MMU_COLS = 128
+MMU_ROWS = 256
+MMU_COLS = 256
 ACCUMULATOR_SIZE = 4096
 
 def calculate_TPU_cycle_time(n_matrices):
@@ -28,6 +28,7 @@ def calculate_TPU_cycle_time(n_matrices):
         wf.add_weights(weights[i])
 
     for i in range(n_matrices):
+        print(f'TPU Processing matrix {i+1}/{n_matrices}')
         shape = output_shapes[i]
         cycles = calculate_num_cycles_TPU(input_shapes[i], shape, MMU_ROWS, None if i == 0 else input_shapes[i-1])
 
@@ -65,6 +66,7 @@ def calculate_NSSA_cycle_time(n_matrices):
         wf.add_weights(weights[i])
 
     for i in range(n_matrices):
+        print(f'NSSA Processing matrix {i+1}/{n_matrices}')
         shape = output_shapes[i]
         cycles = calculate_num_cycles_NSSA(input_shapes[i], shape, MMU_ROWS, None if i == 0 else input_shapes[i-1])
 
@@ -85,11 +87,14 @@ if __name__ == '__main__':
     cycles_tpu = []
     cycles_NSSA = []
     for n in n_matrices:
-        cycles_tpu.append(calculate_num_cycles_TPU())
-        cycles_NSSA.append(calculate_num_cycles_NSSA())
+        print(f'Testing for {n} matrices')
+        cycles_tpu.append(calculate_TPU_cycle_time(n))
+        cycles_NSSA.append(calculate_NSSA_cycle_time(n))
     print(cycles_tpu)
     print(cycles_NSSA)
     plt.plot(n_matrices, cycles_tpu, label = "TPU")
     plt.plot(n_matrices, cycles_NSSA, label = "NSSA")
+    plt.xlabel('Number of Pipelined Matrices')
+    plt.ylabel('Total Number of Cycles')
     plt.legend()
     plt.show()

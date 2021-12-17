@@ -1,6 +1,4 @@
 import numpy as np
-from queue import Queue
-from dataclasses import dataclass
 
 class MAC:
     """
