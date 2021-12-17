@@ -1,4 +1,5 @@
 import numpy as np
+from colorama import Fore, Back, Style
 
 class MAC:
     """
@@ -102,6 +103,20 @@ class MMU:
         for i in range(len(weights)):
             for j in range(len(weights[0])):
                 self.array[i, j].weight = weights[i, j]
+
+    def display(self, wf):
+        print('MMU: ')
+        for i in range(self.array.shape[0]):
+            line = ''
+            for j in range(self.array.shape[1]):
+                mac = self.array[i,j]
+                t = str(mac.result_partial_sum)
+                for f_idx in wf.flood_indices:
+                    if f_idx == i + j:
+                        t = Back.GREEN + str(mac.result_partial_sum) + Back.RESET
+                line += t + '\t'
+
+            print(line)
 
     def cycle(self):
         """

@@ -1,6 +1,5 @@
 import numpy as np
-from queue import Queue
-from dataclasses import dataclass
+from colorama import Fore, Back, Style
 
 class MAC:
     """
@@ -127,4 +126,11 @@ class MMU:
         self.accumulator.accumulate_partial_sum(self.array[-1])
 
     def display(self):
-        print(np.array([[mac.result_output for mac in row] for row in self.array]))
+        print('MMU: ')
+        for i in range(self.array.shape[0]):
+            line = ''
+            for j in range(self.array.shape[1]):
+                mac = self.array[i,j]
+                line += str(mac.result_output) + '\t'
+
+            print(line)

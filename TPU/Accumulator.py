@@ -1,5 +1,5 @@
 import numpy as np
-
+from colorama import Fore, Back, Style
 
 class Accumulator:
     """
@@ -23,6 +23,8 @@ class Accumulator:
         self.cap = np.full(n_accumulators, acc_size)
         self.acc_size = acc_size
 
+        self.changed = np.full(n_accumulators, -1, dtype=int) # index of most recently changed values
+
     def accumulate_partial_sum(self, macs):
         """
         Stores the partial sums of the last MMU row in the accumulators.
@@ -33,8 +35,10 @@ class Accumulator:
         
         for i in range(len(buffer)):
             if buffer[i] == 0: # do not store 0's
+                self.changed[i] = -1
                 continue
             self.acc[self.index[i], i] += buffer[i] # add the value to the accumulator
+            self.changed[i] = self.index[i]
             self.index[i] = self.index[i] + 1 # increment current accumulator index for the next value
             if self.index[i] == self.cap[i]: # reset cap
                 self.index[i] = 0
@@ -52,7 +56,15 @@ class Accumulator:
         """
         print('ACCUMULATOR: ')
         for i in range(n):
-            print('\t'.join(str(val) for val in self.acc[i]))
+            line = ''
+            for j in range(len(self.acc[i])):
+                val = self.acc[i,j]
+                if self.changed[j] == i:
+                    line += Back.GREEN + str(val) + Back.RESET + '\t'
+                else:
+                    line += str(val) + '\t'
+
+            print(line)
 
     def get_block(self, shape):
         """
